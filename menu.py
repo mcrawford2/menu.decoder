@@ -1,118 +1,248 @@
+import unicodedata
 import re
 
 
-PRICE_RE = re.compile(r"(\$?\d{1,3}(?:\.\d{2})?)")
+# ── Allergen & keyword data ────────────────────────────────────────────────────
 
-COMMON_ALLERGENS = {
-	"dairy": ["milk", "cheese", "cream", "butter"],
-	"egg": ["egg", "aioli", "mayo"],
-	"fish": ["fish", "salmon", "tuna", "cod", "anchovy"],
-	"shellfish": ["shrimp", "crab", "lobster", "clam", "mussel", "oyster"],
-	"peanut": ["peanut"],
-	"tree nuts": ["almond", "cashew", "walnut", "pistachio", "pecan", "hazelnut"],
-	"soy": ["soy", "tofu", "miso", "edamame"],
-	"wheat/gluten": ["wheat", "bread", "pasta", "gluten", "flour"],
-	"sesame": ["sesame", "tahini"],
+ALLERGENS = {
+    "dairy":     ["cheese", "cream", "milk", "butter", "yogurt", "parmesan", "mozzarella", "cheddar", "brie", "ricotta", "gouda", "feta"],
+    "gluten":    ["bread", "pasta", "flour", "wheat", "crouton", "breaded", "battered", "tortilla", "noodle", "pita", "rye", "barley"],
+    "nuts":      ["almond", "walnut", "pecan", "cashew", "pistachio", "hazelnut", "peanut", "pine nut", "macadamia", "chestnut"],
+    "shellfish": ["shrimp", "crab", "lobster", "scallop", "clam", "oyster", "mussel", "prawn", "crawfish"],
+    "eggs":      ["egg", "eggs", "frittata", "quiche", "aioli", "hollandaise", "meringue"],
+    "soy":       ["soy", "tofu", "edamame", "miso", "tempeh"],
 }
 
-FISH_WORDS = ["fish", "salmon", "tuna", "cod", "anchovy", "sardine", "trout", "halibut"]
-MEAT_WORDS = ["chicken", "beef", "pork", "bacon", "ham", "turkey", "lamb", "sausage"]
-SHELLFISH_WORDS = ["shrimp", "crab", "lobster", "clam", "mussel", "oyster", "scallop"]
+MEAT_KEYWORDS = [
+    "chicken", "beef", "pork", "lamb", "duck", "steak", "bacon", "sausage",
+    "turkey", "veal", "venison", "prosciutto", "pepperoni", "salami",
+    "brisket", "chorizo", "pancetta", "ham", "ribs", "wings",
+]
+
+FISH_KEYWORDS = [
+    "salmon", "tuna", "cod", "tilapia", "halibut", "mahi", "trout", "bass",
+    "swordfish", "anchovy", "sardine", "fish", "shrimp", "scallop", "crab",
+    "lobster", "clam", "oyster", "mussel", "prawn", "seafood",
+]
+
+CUISINE_KEYWORDS = {
+    "Italian":  ["pasta", "pizza", "risotto", "gnocchi", "tiramisu", "parmesan", "prosciutto", "bruschetta", "linguine", "penne", "carbonara"],
+    "Mexican":  ["taco", "burrito", "enchilada", "salsa", "guacamole", "quesadilla", "tortilla", "cilantro", "carnitas", "tamale"],
+    "Japanese": ["sushi", "ramen", "miso", "tempura", "udon", "soba", "teriyaki", "edamame", "sashimi", "tonkatsu"],
+    "Indian":   ["curry", "naan", "tikka", "masala", "samosa", "dal", "paneer", "chutney", "biryani", "tandoori"],
+    "American": ["burger", "fries", "wings", "bbq", "ribs", "mac and cheese", "grilled cheese", "brisket", "cornbread"],
+    "Chinese":  ["fried rice", "dumpling", "wonton", "kung pao", "lo mein", "egg roll", "hoisin", "bok choy", "dim sum"],
+    "Thai":     ["pad thai", "satay", "coconut milk", "lemongrass", "thai basil", "green curry", "tom yum"],
+    "French":   ["crepe", "baguette", "brie", "croissant", "ratatouille", "bouillabaisse", "coq au vin", "souffle"],
+    "Greek":    ["gyro", "tzatziki", "hummus", "falafel", "spanakopita", "dolma", "pita", "feta", "moussaka"],
+    "Spanish":  ["paella", "tapas", "chorizo", "gazpacho", "patatas", "manchego", "albondigas"],
+}
+
+PRICE_PATTERN = re.compile(r'\$\s*(\d+(?:\.\d{1,2})?)')
 
 
-def find_tags(text, mapping):
-	lower_text = text.lower()
-	return [label for label, words in mapping.items() if any(word in lower_text for word in words)]
+# ── Text cleaning ──────────────────────────────────────────────────────────────
+
+def normalize_menu_text(raw_text):
+    text = unicodedata.normalize("NFKC", raw_text)
+
+    replacements = {
+        "\u2018": "'", "\u2019": "'",
+        "\u201c": '"', "\u201d": '"',
+        "\u2013": "-", "\u2014": "-",
+        "\u2022": "-",
+        "\u00b7": "-",
+        "\u00a0": " ",
+        "\t": "    ",
+    }
+    for char, replacement in replacements.items():
+        text = text.replace(char, replacement)
+
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    lines = [line.rstrip() for line in text.split("\n")]
+    return "\n".join(lines).strip()
 
 
-def contains_any(text, words):
-	lower_text = text.lower()
-	return any(word in lower_text for word in words)
+# ── Analysis helpers ───────────────────────────────────────────────────────────
+
+def detect_allergens(text):
+    text_lower = text.lower()
+    found = []
+    for allergen, keywords in ALLERGENS.items():
+        if any(kw in text_lower for kw in keywords):
+            found.append(allergen)
+    return found
 
 
-def parse_menu(text):
-	dishes = []
-	for raw_line in text.splitlines():
-		line = raw_line.strip()
-		if not line:
-			continue
-
-		price_match = PRICE_RE.search(line)
-		if not price_match:
-			continue
-
-		price_text = price_match.group(1).replace("$", "")
-		try:
-			price = float(price_text)
-		except ValueError:
-			price = None
-
-		name = line[:price_match.start()].strip(" -:|") or "UNKNOWN_DISH"
-		text_for_flags = line
-		has_fish = contains_any(text_for_flags, FISH_WORDS)
-		has_shellfish = contains_any(text_for_flags, SHELLFISH_WORDS)
-		has_meat = contains_any(text_for_flags, MEAT_WORDS)
-
-		dishes.append(
-			{
-				"name": name,
-				"price": price,
-				"fish": has_fish,
-				"vegetarian": (not has_meat) and (not has_fish) and (not has_shellfish),
-				"allergens": find_tags(text_for_flags, COMMON_ALLERGENS),
-				"warnings": [] if name != "UNKNOWN_DISH" else ["missing_name"],
-			}
-		)
-	return dishes
+def detect_dietary_tags(text):
+    text_lower = text.lower()
+    has_meat = any(kw in text_lower for kw in MEAT_KEYWORDS)
+    has_fish = any(kw in text_lower for kw in FISH_KEYWORDS)
+    tags = []
+    if not has_meat and not has_fish:
+        tags.append("vegetarian")
+    if not has_meat:
+        tags.append("pescatarian-friendly")
+    if has_fish:
+        tags.append("contains-fish")
+    if has_meat:
+        tags.append("contains-meat")
+    return tags
 
 
-def summarize(dishes):
-	prices = [d["price"] for d in dishes if isinstance(d.get("price"), (int, float))]
-	if prices:
-		avg_price = round(sum(prices) / len(prices), 2)
-		price_range = [round(min(prices), 2), round(max(prices), 2)]
-	else:
-		avg_price = None
-		price_range = [None, None]
-
-	return {
-		"dish_count": len(dishes),
-		"priced_dish_count": len(prices),
-		"average_price": avg_price,
-		"price_range": price_range,
-	}
+def detect_cuisine(full_text):
+    text_lower = full_text.lower()
+    scores = {}
+    for cuisine, keywords in CUISINE_KEYWORDS.items():
+        score = sum(1 for kw in keywords if kw in text_lower)
+        if score > 0:
+            scores[cuisine] = score
+    if not scores:
+        return "Unknown"
+    return max(scores, key=scores.get)
 
 
-def read_text():
-	print("Paste menu text, then press Enter on a blank line:")
-	lines = []
-	while True:
-		line = input()
-		if not line.strip():
-			break
-		lines.append(line)
-	return "\n".join(lines)
+def parse_dishes(clean_text):
+    dishes = []
+    for line in clean_text.split("\n"):
+        line = line.strip()
+        if not line or len(line) < 4:
+            continue
 
+        prices = PRICE_PATTERN.findall(line)
+        price = f"${prices[0]}" if prices else None
+
+        # skip section headers (all caps, no price)
+        if line.isupper() and not price:
+            continue
+
+        name_part = PRICE_PATTERN.sub("", line).strip(" .-")
+        if not name_part:
+            continue
+
+        allergens = detect_allergens(name_part)
+        tags = detect_dietary_tags(name_part)
+
+        dishes.append({
+            "name": name_part,
+            "price": price,
+            "allergens": allergens,
+            "dietary_tags": tags,
+        })
+
+    return dishes
+
+
+# ── Core analysis ──────────────────────────────────────────────────────────────
+
+def analyze_menu(clean_text):
+    dishes = parse_dishes(clean_text)
+    prices = [float(d["price"][1:]) for d in dishes if d["price"]]
+
+    avg_price = f"~${sum(prices)/len(prices):.2f}" if prices else "N/A"
+
+    if prices:
+        avg = sum(prices) / len(prices)
+        if avg < 12:    price_range = "$      (budget-friendly)"
+        elif avg < 20:  price_range = "$$     (moderate)"
+        elif avg < 35:  price_range = "$$$    (upscale)"
+        else:           price_range = "$$$$   (fine dining)"
+    else:
+        price_range = "Unknown"
+
+    return {
+        "restaurant_summary": {
+            "cuisine_type": detect_cuisine(clean_text),
+            "price_range": price_range,
+            "average_dish_price": avg_price,
+        },
+        "dishes": dishes,
+    }
+
+
+# ── Display ────────────────────────────────────────────────────────────────────
+
+def display_results(data):
+    summary = data.get("restaurant_summary", {})
+    dishes  = data.get("dishes", [])
+
+    print("\n" + "="*60)
+    print("  RESULTS")
+    print("="*60)
+
+    print("\n--- Restaurant Overview ---")
+    print(f"  Cuisine:      {summary.get('cuisine_type', 'Unknown')}")
+    print(f"  Price range:  {summary.get('price_range', 'Unknown')}")
+    print(f"  Average dish: {summary.get('average_dish_price', 'N/A')}")
+
+    # Pescatarian-friendly summary
+    pesc_dishes = [d for d in dishes if "pescatarian-friendly" in d["dietary_tags"]]
+    print(f"\n--- Pescatarian-friendly dishes ({len(pesc_dishes)} of {len(dishes)}) ---")
+    if pesc_dishes:
+        for d in pesc_dishes:
+            price_str = f"  {d['price']}" if d["price"] else ""
+            print(f"  {d['name']}{price_str}")
+    else:
+        print("  None detected.")
+
+    # All dishes
+    print(f"\n--- All Dishes ---\n")
+    for dish in dishes:
+        name      = dish.get("name", "Unnamed")
+        price     = dish.get("price") or "no price listed"
+        allergens = dish.get("allergens", [])
+        tags      = dish.get("dietary_tags", [])
+
+        print(f"  {name}  ({price})")
+        if tags:
+            print(f"    Tags:      {', '.join(tags)}")
+        if allergens:
+            print(f"    Allergens: {', '.join(allergens)}")
+        print()
+
+    print("="*60)
+
+
+# ── Input ──────────────────────────────────────────────────────────────────────
+
+def get_menu_from_user():
+    print("\n" + "="*60)
+    print("  MENU DECODER")
+    print("="*60)
+    print("\nPaste your menu text below.")
+    print("When finished, type END on its own line and press Enter.\n")
+
+    lines = []
+    while True:
+        try:
+            line = input()
+        except EOFError:
+            break
+        if line.strip().upper() == "END":
+            break
+        lines.append(line)
+
+    return "\n".join(lines)
+
+
+# ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
-	text = read_text()
+    raw_text = get_menu_from_user()
 
-	if not text.strip():
-		print("No input provided.")
-		return
+    if not raw_text.strip():
+        print("\n[Error] No menu text was entered.")
+        return
 
-	dishes = parse_menu(text)
-	summary = summarize(dishes)
+    if len(raw_text) > 50_000:
+        print("\n[Error] Menu text is too long (max 50,000 characters).")
+        return
 
-	print("Summary:")
-	print(summary)
-	print("\nDishes:")
-	for i, dish in enumerate(dishes, 1):
-		print(f"{i}. {dish['name']} | ${dish['price']}")
-		print(f"   fish: {dish['fish']}")
-		print(f"   vegetarian: {dish['vegetarian']}")
-		print(f"   allergens: {dish['allergens']}")
+    clean_text = normalize_menu_text(raw_text)
+    result     = analyze_menu(clean_text)
+    display_results(result)
 
 
 if __name__ == "__main__":
-	main()
+    main()
