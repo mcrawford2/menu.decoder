@@ -16,13 +16,13 @@ ALLERGENS = {
 MEAT_KEYWORDS = [
     "chicken", "beef", "pork", "lamb", "duck", "steak", "bacon", "sausage",
     "turkey", "veal", "venison", "prosciutto", "pepperoni", "salami",
-    "brisket", "chorizo", "pancetta", "ham", "ribs", "wings",
+    "brisket", "chorizo", "pancetta", "ham", "ribs", "wings", "meat",
 ]
 
 FISH_KEYWORDS = [
     "salmon", "tuna", "cod", "tilapia", "halibut", "mahi", "trout", "bass",
     "swordfish", "anchovy", "sardine", "fish", "shrimp", "scallop", "crab",
-    "lobster", "clam", "oyster", "mussel", "prawn", "seafood",
+    "lobster", "clam", "oyster", "mussel", "prawn", "seafood", "octopus", "squid",
 ]
 
 CUISINE_KEYWORDS = {
@@ -38,7 +38,7 @@ CUISINE_KEYWORDS = {
     "Spanish":  ["paella", "tapas", "chorizo", "gazpacho", "patatas", "manchego", "albondigas"],
 }
 
-PRICE_PATTERN = re.compile(r'\$\s*(\d+(?:\.\d{1,2})?)')
+PRICE_PATTERN = re.compile(r'(?:\$\s*)?(\d+(?:\.\d{1,2})?)\s*$')
 
 
 # ── Text cleaning ──────────────────────────────────────────────────────────────
@@ -117,6 +117,9 @@ def parse_dishes(clean_text):
         if line.isupper() and not price:
             continue
 
+        if not price:
+            continue
+
         name_part = PRICE_PATTERN.sub("", line).strip(" .-")
         if not name_part:
             continue
@@ -139,6 +142,16 @@ def parse_dishes(clean_text):
 def analyze_menu(clean_text):
     dishes = parse_dishes(clean_text)
     prices = [float(d["price"][1:]) for d in dishes if d["price"]]
+    vegetarian_friendly = sum(
+        1
+        for dish in dishes
+        if "contains-meat" not in dish["dietary_tags"] and "contains-fish" not in dish["dietary_tags"]
+    ) > 3
+    pescatarian_friendly = sum(
+        1
+        for dish in dishes
+        if "contains-meat" not in dish["dietary_tags"]
+    ) > 3
 
     avg_price = f"~${sum(prices)/len(prices):.2f}" if prices else "N/A"
 
@@ -156,6 +169,8 @@ def analyze_menu(clean_text):
             "cuisine_type": detect_cuisine(clean_text),
             "price_range": price_range,
             "average_dish_price": avg_price,
+            "vegetarian_friendly": vegetarian_friendly,
+            "pescatarian_friendly": pescatarian_friendly,
         },
         "dishes": dishes,
     }
@@ -165,7 +180,6 @@ def analyze_menu(clean_text):
 
 def display_results(data):
     summary = data.get("restaurant_summary", {})
-    dishes  = data.get("dishes", [])
 
     print("\n" + "="*60)
     print("  RESULTS")
@@ -175,31 +189,10 @@ def display_results(data):
     print(f"  Cuisine:      {summary.get('cuisine_type', 'Unknown')}")
     print(f"  Price range:  {summary.get('price_range', 'Unknown')}")
     print(f"  Average dish: {summary.get('average_dish_price', 'N/A')}")
-
-    # Pescatarian-friendly summary
-    pesc_dishes = [d for d in dishes if "pescatarian-friendly" in d["dietary_tags"]]
-    print(f"\n--- Pescatarian-friendly dishes ({len(pesc_dishes)} of {len(dishes)}) ---")
-    if pesc_dishes:
-        for d in pesc_dishes:
-            price_str = f"  {d['price']}" if d["price"] else ""
-            print(f"  {d['name']}{price_str}")
-    else:
-        print("  None detected.")
-
-    # All dishes
-    print(f"\n--- All Dishes ---\n")
-    for dish in dishes:
-        name      = dish.get("name", "Unnamed")
-        price     = dish.get("price") or "no price listed"
-        allergens = dish.get("allergens", [])
-        tags      = dish.get("dietary_tags", [])
-
-        print(f"  {name}  ({price})")
-        if tags:
-            print(f"    Tags:      {', '.join(tags)}")
-        if allergens:
-            print(f"    Allergens: {', '.join(allergens)}")
-        print()
+    vegetarian_friendly = str(summary.get('vegetarian_friendly', False)).lower()
+    pescatarian_friendly = str(summary.get('pescatarian_friendly', False)).lower()
+    print(f"  Vegetarian friendly:   {vegetarian_friendly}")
+    print(f"  Pescatarian friendly:   {pescatarian_friendly}")
 
     print("="*60)
 

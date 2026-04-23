@@ -37,22 +37,48 @@
     - Program displays average price range
 
 
+## USAGE 3
 
-### As of right now: menu decoder doesn't work but should...
+# What you asked - the prompt or question
+- I was having a lot of difficulty with parsing errors after copying and pasteing menus. I pthen copy and pasted the errors into the Copilot integrated chatbox (the AI tool I usually use) and asked AI to help me understand and fix the errors, but I did not like the responses it was giving me. It kept creating new sample menu txt files and saying the errors were fixed, but I was still receiving errors ant not understanding the process. because of this, I switched to Claude.ai and asked it to do the same thing. 
 
-# New MVP acceptance criteria
-- Input: user can paste menu text directly into terminal.
-- Dish parsing: a dish is counted when a line contains a price token.
-- Flags: each detected dish includes `fish` (true/false), `vegetarian` (true/false), and `allergens` (list).
-- Price analytics: program outputs `average_price` and `price_range` `[min, max]` for parsed prices.
-- Resilience: blank input exits cleanly with a helpful message.
+# What AI generated - the output you received
+- Claude helped me treat the pasted menu as raw text from the start with no assumptions about formatting
+- It directed me to use Unicodedata
+- It also recommended using an API for normalizing menus rather than by keyword, which I will consider switching too once I reach my MVP
 
-# What the program now does:
-- User pastes menu text in terminal (no file argument mode).
-- For each dish line with a price, it flags:
-    - fish: true/false
-    - egetarian: true/false
-    - common allergens: list
-It displays:
-    - average_price
-    - price_range as [min, max]
+# What you did with it - how you verified, modified, or integrated the output
+- I tested the new code with three different menu and saw as they each returned unique outputs, with no errors
+
+# What you learned - what you understood better as a result
+- Unicode is the universal system for representing text from every language and symbol set, and using Unicodedata converts compatibility of fancy Unicode characters into their simplest form
+- Using an API rather than keyword search might make the program more accurate, because keyword libraries might be missing words that API would catch
+
+
+## USAGE 4
+
+# What you asked - the prompt or question
+- I asked AI to help create two boolean expressions
+1. the restaurant/menu is vegetarian friendly and shows true if there are more than three dishes with no meat or fish keywords, otherwise shows false
+2. if the restaurant/menu is pescatarian friendly and shows true if there are more than three dishes with no meat keywords, otherwise show false
+
+# What AI generated - the output you received
+- the AI originally generated:
+    vegetarian_friendly = sum(
+        1
+        for dish in dishes
+        if "contains-meat" not in dish["dietary_tags"] and "contains-fish" not in dish["dietary_tags"]
+    ) > 3
+    pescatarian_friendly = all("contains-meat" not in dish["dietary_tags"] for dish in dishes)
+...
+    vegetarian_friendly = str(summary.get('vegetarian_friendly', False)).lower()
+    pescatarian_friendly = str(summary.get('pescatarian_friendly', False)).lower()
+
+# What you did with it - how you verified, modified, or integrated the output
+- this is not output I expected because I does not look like boolean expressions I have used in the past. 
+- I modified the code so that peccatarian_friendly also had to check for 3 non-meat dishes, rather than using all(), which would have been too strict
+- I verified it worked accurately by testing the code with three different menus, and then manually reading over the code.
+
+# What you learned - what you understood better as a result
+- I learned a new method of creating conditional boolean true/false expressions. I was not used to seeing sum() to count the number of passing dishes, and then converted to true/false later. However, I think that having it organized this way makes it easy to read through in the context of the whole script. 
+- This presented me another potential error: conditionals like these are keyword-based and only count parsed dish lines that have prices in-line. Accuracy may depend on dish wording and price-line formatting in the menu text.
