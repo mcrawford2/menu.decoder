@@ -82,3 +82,18 @@
 # What you learned - what you understood better as a result
 - I learned a new method of creating conditional boolean true/false expressions. I was not used to seeing sum() to count the number of passing dishes, and then converted to true/false later. However, I think that having it organized this way makes it easy to read through in the context of the whole script. 
 - This presented me another potential error: conditionals like these are keyword-based and only count parsed dish lines that have prices in-line. Accuracy may depend on dish wording and price-line formatting in the menu text.
+
+
+## USAGE 5
+
+# What you asked - the prompt or question
+- I asked AI to help parse multi-line dish descriptions
+
+# What AI generated - the output you received
+- AI generated code that helped with blocks of parsed information, rather than individual lines. 
+
+# What you did with it - how you verified, modified, or integrated the output
+- I checked this by manually reading through and inputting more menus into the program, and it does seem the accuracy is better. However, I think it could still be better improved, specifically in regards to sorting based on item type (appetizer, entree, dessert, other)
+
+# What you learned - what you understood better as a result
+- 

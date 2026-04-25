@@ -104,36 +104,88 @@ def detect_cuisine(full_text):
 
 
 def parse_dishes(clean_text):
+    """
+    Parse dishes from menu text, grouping multi-line descriptions.
+    
+    Strategy:
+    1. Split text into logical blocks (separated by blank lines)
+    2. For each block, find the line with a price (primary dish line)
+    3. Remaining lines in the block are description/ingredients
+    4. Combine name + description for analysis
+    """
     dishes = []
-    for line in clean_text.split("\n"):
+    lines = clean_text.split("\n")
+    
+    # Group lines into blocks (sections separated by blank lines or section headers)
+    blocks = []
+    current_block = []
+    
+    for line in lines:
         line = line.strip()
-        if not line or len(line) < 4:
+        
+        # Skip empty lines
+        if not line:
+            if current_block:
+                blocks.append(current_block)
+                current_block = []
             continue
-
-        prices = PRICE_PATTERN.findall(line)
+        
+        # Skip section headers (all caps, short, no price)
+        if line.isupper() and not PRICE_PATTERN.search(line):
+            if current_block:
+                blocks.append(current_block)
+                current_block = []
+            continue
+        
+        current_block.append(line)
+    
+    if current_block:
+        blocks.append(current_block)
+    
+    # Parse each block
+    for block in blocks:
+        # Find which line(s) contain prices
+        price_lines = [(i, line) for i, line in enumerate(block) if PRICE_PATTERN.search(line)]
+        
+        if not price_lines:
+            continue
+        
+        # Take the first price-containing line as the primary dish line
+        primary_idx, primary_line = price_lines[0]
+        
+        # Extract price and name from primary line
+        prices = PRICE_PATTERN.findall(primary_line)
         price = f"${prices[0]}" if prices else None
-
-        # skip section headers (all caps, no price)
-        if line.isupper() and not price:
+        name = PRICE_PATTERN.sub("", primary_line).strip(" .-")
+        
+        if not name or not price:
             continue
-
-        if not price:
-            continue
-
-        name_part = PRICE_PATTERN.sub("", line).strip(" .-")
-        if not name_part:
-            continue
-
-        allergens = detect_allergens(name_part)
-        tags = detect_dietary_tags(name_part)
-
+        
+        # Collect all description lines (before and after primary, except other price lines)
+        description_parts = []
+        for i, line in enumerate(block):
+            if i == primary_idx:
+                continue
+            if PRICE_PATTERN.search(line):
+                # Skip other price lines in the block
+                continue
+            description_parts.append(line)
+        
+        # Combine name + description for allergen/dietary analysis
+        full_text = name
+        if description_parts:
+            full_text += " " + " ".join(description_parts)
+        
+        allergens = detect_allergens(full_text)
+        tags = detect_dietary_tags(full_text)
+        
         dishes.append({
-            "name": name_part,
+            "name": name,
             "price": price,
             "allergens": allergens,
             "dietary_tags": tags,
         })
-
+    
     return dishes
 
 
