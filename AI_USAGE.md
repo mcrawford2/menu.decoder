@@ -97,3 +97,18 @@
 
 # What you learned - what you understood better as a result
 - 
+
+## USAGE 6
+
+# What you asked - the prompt or question
+- when testing more menus, there was one restaurant that created errors. Because of this, I asked AI why some menus work while others don't
+
+# What AI generated - the output you received
+- AI replied that there was nothing in the code that would cause an error in one menu and not another. It filtered through parsing, formatting, text normalization, input rules, and validations, and returned nothing that would cause errors.
+
+# What you did with it - how you verified, modified, or integrated the output
+- rather than asking generally about any errors, I pasted the exact menu that created the errors into the attached Copilot. 
+
+# What you learned - what you understood better as a result
+- AI from pasteing the error-causing menu directly into Copilot helped me learn that I need to account for menus that have pricing on their own lines. The block pricing I have was not prepared for that, but I will fix it to be able to handle these instances.
+- This also helped me learn the importance of running multiple checks. Although it may feel as though I have run many already, menus especially can be formatted in so many unique ways, and I want this app to be bale to account for all types. 
