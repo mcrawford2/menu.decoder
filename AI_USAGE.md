@@ -27,7 +27,7 @@
     - Print summary + dishes
 
 # What you did with it - how you verified, modified, or integrated the output
-- I tried to verify that the code worked by copying and pasteing different restaurnt menus in the terminal. For each menu I tried, there was a different error. I think this is because each menu is formatted in a different way, which makes it hard for the program to parse.
+- I tried to verify that the code worked by copying and pasteing different restaurant menus in the terminal. For each menu I tried, there was a different error. I think this is because each menu is formatted in a different way, which makes it hard for the program to parse.
 - I narrowed the MVP implementation in `menu.py` to reduce parsing complexity
 
 # What you learned - what you understood better as a result
@@ -40,7 +40,7 @@
 ## USAGE 3
 
 # What you asked - the prompt or question
-- I was having a lot of difficulty with parsing errors after copying and pasteing menus. I pthen copy and pasted the errors into the Copilot integrated chatbox (the AI tool I usually use) and asked AI to help me understand and fix the errors, but I did not like the responses it was giving me. It kept creating new sample menu txt files and saying the errors were fixed, but I was still receiving errors ant not understanding the process. because of this, I switched to Claude.ai and asked it to do the same thing. 
+- I was having a lot of difficulty with parsing errors after copying and pasteing menus. I then copy and pasted the errors into the Copilot integrated chatbox (the AI tool I usually use) and asked AI to help me understand and fix the errors, but I did not like the responses it was giving me. It kept creating new sample menu txt files and saying the errors were fixed, but I was still receiving errors ant not understanding the process. Because of this, I switched to Claude.ai and asked it to do the same thing. 
 
 # What AI generated - the output you received
 - Claude helped me treat the pasted menu as raw text from the start with no assumptions about formatting
@@ -75,8 +75,8 @@
     pescatarian_friendly = str(summary.get('pescatarian_friendly', False)).lower()
 
 # What you did with it - how you verified, modified, or integrated the output
-- this is not output I expected because I does not look like boolean expressions I have used in the past. 
-- I modified the code so that peccatarian_friendly also had to check for 3 non-meat dishes, rather than using all(), which would have been too strict
+- this is not output I expected because it does not look like boolean expressions I have used in the past. 
+- I modified the code so that pescatarian_friendly also had to check for 3 non-meat dishes, rather than using all(), which would have been too strict
 - I verified it worked accurately by testing the code with three different menus, and then manually reading over the code.
 
 # What you learned - what you understood better as a result
@@ -96,7 +96,8 @@
 - I checked this by manually reading through and inputting more menus into the program, and it does seem the accuracy is better. However, I think it could still be better improved, specifically in regards to sorting based on item type (appetizer, entree, dessert, other)
 
 # What you learned - what you understood better as a result
-- 
+- parsing in blocks rather than by line improved overall accuracy, especially for multi-line dish descriptions
+
 
 ## USAGE 6
 
@@ -112,3 +113,22 @@
 # What you learned - what you understood better as a result
 - AI from pasteing the error-causing menu directly into Copilot helped me learn that I need to account for menus that have pricing on their own lines. The block pricing I have was not prepared for that, but I will fix it to be able to handle these instances.
 - This also helped me learn the importance of running multiple checks. Although it may feel as though I have run many already, menus especially can be formatted in so many unique ways, and I want this app to be bale to account for all types. 
+
+
+## USAGE 7
+
+# What you asked - the prompt or question
+- while trying to incorporate organization based on item type (appetizer, entree, dessert, other), I asked Claude for tips on how to most efficiently add the new code and for potential problems adding this could cause
+
+# What AI generated - the output you received
+- Claude's response was to add it as new code after what has already been written, to avoid making everything ore fragile. It also told me to begin with header detection first, and to add an "other" category to avoid wrong classificaitons. 
+- Claude warned that this addition would be tricky, and likely would create a lot more accuracy concerns. 
+
+# What you did with it - how you verified, modified, or integrated the output
+- I tried creating header detection similar to the dictionaries created for flagging allergens, meat, and fish. 
+- After attempting to create and incorporate new code the new dicionaries, I am thinking that this modifiction is not worth the inaccuracies it will cause. The "other" section risks being large, and taking away from the validity of all categories. 
+
+# What you learned - what you understood better as a result
+- i thought item type organization would improve accuracy, but instead it added further complications 
+- I knew that menus struggle with inconsistent formatting, but this brought forward an even larger extent of that as sections of menus are rarely titled the same. 
+- adding an API rather than using keywords might have been more productive for this

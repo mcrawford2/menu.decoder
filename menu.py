@@ -2,7 +2,7 @@ import unicodedata
 import re
 
 
-# ── Allergen & keyword data ────────────────────────────────────────────────────
+# Keyword Dictionaries
 
 ALLERGENS = {
     "dairy":     ["cheese", "cream", "milk", "butter", "yogurt", "parmesan", "mozzarella", "cheddar", "brie", "ricotta", "gouda", "feta"],
@@ -41,7 +41,7 @@ CUISINE_KEYWORDS = {
 PRICE_PATTERN = re.compile(r'(?:\$\s*)?(\d+(?:\.\d{1,2})?)\s*$')
 
 
-# ── Text cleaning ──────────────────────────────────────────────────────────────
+# Menu Text Cleaning
 
 def normalize_menu_text(raw_text):
     text = unicodedata.normalize("NFKC", raw_text)
@@ -64,7 +64,7 @@ def normalize_menu_text(raw_text):
     return "\n".join(lines).strip()
 
 
-# ── Analysis helpers ───────────────────────────────────────────────────────────
+# Analysis Helpers
 
 def detect_allergens(text):
     text_lower = text.lower()
@@ -189,7 +189,7 @@ def parse_dishes(clean_text):
     return dishes
 
 
-# ── Core analysis ──────────────────────────────────────────────────────────────
+# Menu Analysis
 
 def analyze_menu(clean_text):
     dishes = parse_dishes(clean_text)
@@ -228,7 +228,7 @@ def analyze_menu(clean_text):
     }
 
 
-# ── Display ────────────────────────────────────────────────────────────────────
+# Terminal Display
 
 def display_results(data):
     summary = data.get("restaurant_summary", {})
@@ -249,7 +249,7 @@ def display_results(data):
     print("="*60)
 
 
-# ── Input ──────────────────────────────────────────────────────────────────────
+# User Input
 
 def get_menu_from_user():
     print("\n" + "="*60)
@@ -271,7 +271,7 @@ def get_menu_from_user():
     return "\n".join(lines)
 
 
-# ── Main ───────────────────────────────────────────────────────────────────────
+# Main
 
 def main():
     raw_text = get_menu_from_user()
