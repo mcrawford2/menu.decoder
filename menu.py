@@ -1,9 +1,10 @@
-import unicodedata
-import re
+import unicodedata #used for text cleaning and normalization
+import re #used for finding and changing tetx patterns, such as prices and unwanted characters
 
 
 # Keyword Dictionaries
 
+#allergens to look for in menu items, mapped to common keywords that indicate their presence
 ALLERGENS = {
     "dairy":     ["cheese", "cream", "milk", "butter", "yogurt", "parmesan", "mozzarella", "cheddar", "brie", "ricotta", "gouda", "feta"],
     "gluten":    ["bread", "pasta", "flour", "wheat", "crouton", "breaded", "battered", "tortilla", "noodle", "pita", "rye", "barley"],
@@ -38,7 +39,17 @@ CUISINE_KEYWORDS = {
     "Spanish":  ["paella", "tapas", "chorizo", "gazpacho", "patatas", "manchego", "albondigas"],
 }
 
+#matches prices to menu format, allowing for optional dollar sign, optional space, and ensuring it is at the end of the line
 PRICE_PATTERN = re.compile(r'(?:\$\s*)?(\d+(?:\.\d{1,2})?)\s*$')
+
+#to avoid false matches (such as ham in champagne)
+def keyword_present(text, keywords):
+    """Return True when any keyword appears as a whole word or phrase."""
+    for keyword in keywords:
+        pattern = r'(?<!\w)' + re.escape(keyword.lower()) + r'(?!\w)' #r'(?<!\w)': makes sure a keyword starts at a real word boundary
+        if re.search(pattern, text):
+            return True
+    return False
 
 
 # Menu Text Cleaning
@@ -47,38 +58,43 @@ def normalize_menu_text(raw_text):
     text = unicodedata.normalize("NFKC", raw_text)
 
     replacements = {
-        "\u2018": "'", "\u2019": "'",
-        "\u201c": '"', "\u201d": '"',
-        "\u2013": "-", "\u2014": "-",
-        "\u2022": "-",
-        "\u00b7": "-",
-        "\u00a0": " ",
-        "\t": "    ",
+        "\u2018": "'", "\u2019": "'",   #left vs right single quotes
+        "\u201c": '"', "\u201d": '"',   #left vs right double quotes
+        "\u2013": "-", "\u2014": "-",   #en dash and em dash to hyphen
+        "\u2022": "-",                  #bullet points to hyphen
+        "\u00b7": "-",                  #middle dot (often used as bullet) to hyphen  
+        "\u00a0": " ",                  #non-breaking space to regular space
+        "\t": "    ",                   #tabs to 4 spaces
     }
+
+    #cleaning up, making menu text consistent and easier to parse
     for char, replacement in replacements.items():
         text = text.replace(char, replacement)
 
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = text.replace("\r\n", "\n").replace("\r", "\n") #line endings 
+    text = re.sub(r"\n{3,}", "\n\n", text)                #collapse multiple blank lines to max 2
     lines = [line.rstrip() for line in text.split("\n")]
     return "\n".join(lines).strip()
 
 
 # Analysis Helpers
 
+#not directly used in final output
 def detect_allergens(text):
+    """Detect allergens in the text based on keyword matching."""
     text_lower = text.lower()
     found = []
     for allergen, keywords in ALLERGENS.items():
-        if any(kw in text_lower for kw in keywords):
+        if keyword_present(text_lower, keywords):
             found.append(allergen)
     return found
 
 
 def detect_dietary_tags(text):
+    """Detect dietary tags based on presence of meat/fish keywords."""
     text_lower = text.lower()
-    has_meat = any(kw in text_lower for kw in MEAT_KEYWORDS)
-    has_fish = any(kw in text_lower for kw in FISH_KEYWORDS)
+    has_meat = keyword_present(text_lower, MEAT_KEYWORDS)
+    has_fish = keyword_present(text_lower, FISH_KEYWORDS)
     tags = []
     if not has_meat and not has_fish:
         tags.append("vegetarian")
@@ -91,7 +107,18 @@ def detect_dietary_tags(text):
     return tags
 
 
+def is_friendly(dishes, predicate):
+    """Heuristic for whether a menu has enough matching dishes to be friendly."""
+    total_dishes = len(dishes)
+    if total_dishes == 0:
+        return False
+
+    matching_dishes = sum(1 for dish in dishes if predicate(dish))
+    return matching_dishes >= 3 and (matching_dishes / total_dishes) >= 0.15
+
+
 def detect_cuisine(full_text):
+    """Detect cuisine type based on keyword matching."""
     text_lower = full_text.lower()
     scores = {}
     for cuisine, keywords in CUISINE_KEYWORDS.items():
@@ -150,41 +177,45 @@ def parse_dishes(clean_text):
         if not price_lines:
             continue
         
-        # Take the first price-containing line as the primary dish line
-        primary_idx, primary_line = price_lines[0]
-        
-        # Extract price and name from primary line
-        prices = PRICE_PATTERN.findall(primary_line)
-        price = f"${prices[0]}" if prices else None
-        name = PRICE_PATTERN.sub("", primary_line).strip(" .-")
-        
-        if not name or not price:
-            continue
-        
-        # Collect all description lines (before and after primary, except other price lines)
-        description_parts = []
-        for i, line in enumerate(block):
-            if i == primary_idx:
+        # Parse each price-containing line as a separate dish.
+        for price_pos, (primary_idx, primary_line) in enumerate(price_lines):
+            next_price_idx = price_lines[price_pos + 1][0] if price_pos + 1 < len(price_lines) else len(block)
+
+            prices = PRICE_PATTERN.findall(primary_line)
+            price = f"${prices[0]}" if prices else None
+            name_and_description = PRICE_PATTERN.sub("", primary_line).strip(" .-")
+
+            if not name_and_description or not price:
                 continue
-            if PRICE_PATTERN.search(line):
-                # Skip other price lines in the block
-                continue
-            description_parts.append(line)
-        
-        # Combine name + description for allergen/dietary analysis
-        full_text = name
-        if description_parts:
-            full_text += " " + " ".join(description_parts)
-        
-        allergens = detect_allergens(full_text)
-        tags = detect_dietary_tags(full_text)
-        
-        dishes.append({
-            "name": name,
-            "price": price,
-            "allergens": allergens,
-            "dietary_tags": tags,
-        })
+
+            name = name_and_description
+            inline_description = ""
+            split_match = re.split(r"\s[-:]\s", name_and_description, maxsplit=1)
+            if len(split_match) == 2:
+                name, inline_description = split_match
+
+            # Collect description lines that belong to this dish, stopping at the next dish.
+            description_parts = [inline_description] if inline_description else []
+            for i in range(primary_idx + 1, next_price_idx):
+                line = block[i]
+                if PRICE_PATTERN.search(line):
+                    continue
+                description_parts.append(line)
+
+            # Combine name + description for allergen/dietary analysis
+            full_text = name
+            if description_parts:
+                full_text += " " + " ".join(part for part in description_parts if part)
+
+            allergens = detect_allergens(full_text)
+            tags = detect_dietary_tags(full_text)
+
+            dishes.append({
+                "name": name,
+                "price": price,
+                "allergens": allergens,
+                "dietary_tags": tags,
+            })
     
     return dishes
 
@@ -192,21 +223,21 @@ def parse_dishes(clean_text):
 # Menu Analysis
 
 def analyze_menu(clean_text):
+    """Analyze the menu text to extract restaurant summary and dish details."""
     dishes = parse_dishes(clean_text)
-    prices = [float(d["price"][1:]) for d in dishes if d["price"]]
-    vegetarian_friendly = sum(
-        1
-        for dish in dishes
-        if "contains-meat" not in dish["dietary_tags"] and "contains-fish" not in dish["dietary_tags"]
-    ) > 3
-    pescatarian_friendly = sum(
-        1
-        for dish in dishes
-        if "contains-meat" not in dish["dietary_tags"]
-    ) > 3
+    prices = [float(d["price"][1:]) for d in dishes if d["price"]] #loops through every dish, keeps only dishes with a price, removes $, converts text to number, then (after this loop) creates list of prices
+    vegetarian_friendly = is_friendly(
+        dishes,
+        lambda dish: "contains-meat" not in dish["dietary_tags"] and "contains-fish" not in dish["dietary_tags"],
+    )
+    pescatarian_friendly = is_friendly(
+        dishes,
+        lambda dish: "contains-meat" not in dish["dietary_tags"],
+    )
 
-    avg_price = f"~${sum(prices)/len(prices):.2f}" if prices else "N/A"
+    avg_price = f"~${sum(prices)/len(prices):.2f}" if prices else "N/A" #.2f = 2 decimal places
 
+# for Display
     if prices:
         avg = sum(prices) / len(prices)
         if avg < 12:    price_range = "$      (budget-friendly)"
@@ -216,6 +247,20 @@ def analyze_menu(clean_text):
     else:
         price_range = "Unknown"
 
+    # Count allergen keyword occurrences across the whole menu text
+    text_lower = clean_text.lower()
+    allergen_counts = {}
+    for allergen, keywords in ALLERGENS.items():
+        count = 0
+        for kw in keywords:
+            pattern = r"\b" + re.escape(kw.lower()) + r"\b"
+            count += len(re.findall(pattern, text_lower))
+        allergen_counts[allergen] = count
+
+    # Flag any allergen where combined keyword occurrences exceed threshold
+    FLAG_THRESHOLD = 10
+    flagged = {a: c for a, c in allergen_counts.items() if c > FLAG_THRESHOLD}
+
     return {
         "restaurant_summary": {
             "cuisine_type": detect_cuisine(clean_text),
@@ -223,6 +268,7 @@ def analyze_menu(clean_text):
             "average_dish_price": avg_price,
             "vegetarian_friendly": vegetarian_friendly,
             "pescatarian_friendly": pescatarian_friendly,
+            "flagged_allergens": flagged,
         },
         "dishes": dishes,
     }
@@ -245,6 +291,13 @@ def display_results(data):
     pescatarian_friendly = str(summary.get('pescatarian_friendly', False)).lower()
     print(f"  Vegetarian friendly:   {vegetarian_friendly}")
     print(f"  Pescatarian friendly:   {pescatarian_friendly}")
+
+    # Show any high-frequency allergen hits (based on keywords)
+    flagged = summary.get("flagged_allergens", {}) or {}
+    if flagged:
+        print("\n--- Flagged Allergens (high frequency) ---")
+        for allergen, count in flagged.items():
+            print(f"  {allergen}: {count} occurrences")
 
     print("="*60)
 

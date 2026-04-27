@@ -59,11 +59,11 @@
 
 # What you asked - the prompt or question
 - I asked AI to help create two boolean expressions
-1. the restaurant/menu is vegetarian friendly and shows true if there are more than three dishes with no meat or fish keywords, otherwise shows false
-2. if the restaurant/menu is pescatarian friendly and shows true if there are more than three dishes with no meat keywords, otherwise show false
+1. The restaurant/menu is vegetarian friendly and shows true if there are more than three dishes with no meat or fish keywords, otherwise shows false
+2. If the restaurant/menu is pescatarian friendly and shows true if there are more than three dishes with no meat keywords, otherwise show false
 
 # What AI generated - the output you received
-- the AI originally generated:
+- The AI originally generated:
     vegetarian_friendly = sum(
         1
         for dish in dishes
@@ -75,7 +75,7 @@
     pescatarian_friendly = str(summary.get('pescatarian_friendly', False)).lower()
 
 # What you did with it - how you verified, modified, or integrated the output
-- this is not output I expected because it does not look like boolean expressions I have used in the past. 
+- This is not output I expected because it does not look like boolean expressions I have used in the past. 
 - I modified the code so that pescatarian_friendly also had to check for 3 non-meat dishes, rather than using all(), which would have been too strict
 - I verified it worked accurately by testing the code with three different menus, and then manually reading over the code.
 
@@ -96,19 +96,19 @@
 - I checked this by manually reading through and inputting more menus into the program, and it does seem the accuracy is better. However, I think it could still be better improved, specifically in regards to sorting based on item type (appetizer, entree, dessert, other)
 
 # What you learned - what you understood better as a result
-- parsing in blocks rather than by line improved overall accuracy, especially for multi-line dish descriptions
+- Parsing in blocks rather than by line improved overall accuracy, especially for multi-line dish descriptions
 
 
 ## USAGE 6
 
 # What you asked - the prompt or question
-- when testing more menus, there was one restaurant that created errors. Because of this, I asked AI why some menus work while others don't
+- When testing more menus, there was one restaurant that created errors. Because of this, I asked AI why some menus work while others don't
 
 # What AI generated - the output you received
 - AI replied that there was nothing in the code that would cause an error in one menu and not another. It filtered through parsing, formatting, text normalization, input rules, and validations, and returned nothing that would cause errors.
 
 # What you did with it - how you verified, modified, or integrated the output
-- rather than asking generally about any errors, I pasted the exact menu that created the errors into the attached Copilot. 
+- Rather than asking generally about any errors, I pasted the exact menu that created the errors into the attached Copilot. 
 
 # What you learned - what you understood better as a result
 - AI from pasteing the error-causing menu directly into Copilot helped me learn that I need to account for menus that have pricing on their own lines. The block pricing I have was not prepared for that, but I will fix it to be able to handle these instances.
@@ -118,7 +118,7 @@
 ## USAGE 7
 
 # What you asked - the prompt or question
-- while trying to incorporate organization based on item type (appetizer, entree, dessert, other), I asked Claude for tips on how to most efficiently add the new code and for potential problems adding this could cause
+- While trying to incorporate organization based on item type (appetizer, entree, dessert, other), I asked Claude for tips on how to most efficiently add the new code and for potential problems adding this could cause
 
 # What AI generated - the output you received
 - Claude's response was to add it as new code after what has already been written, to avoid making everything ore fragile. It also told me to begin with header detection first, and to add an "other" category to avoid wrong classificaitons. 
@@ -129,6 +129,24 @@
 - After attempting to create and incorporate new code the new dicionaries, I am thinking that this modifiction is not worth the inaccuracies it will cause. The "other" section risks being large, and taking away from the validity of all categories. 
 
 # What you learned - what you understood better as a result
-- i thought item type organization would improve accuracy, but instead it added further complications 
+- I thought item type organization would improve accuracy, but instead it added further complications 
 - I knew that menus struggle with inconsistent formatting, but this brought forward an even larger extent of that as sections of menus are rarely titled the same. 
-- adding an API rather than using keywords might have been more productive for this
+- Adding an API rather than using keywords might have been more productive for this
+
+
+## USAGE 8
+
+# What you asked - the prompt or question
+- My final use of AI was re-reading through the entire text, and asking it what specific lines mean that I may have forgotten since starting the project or just want further clarification on
+    - example: "what is .2f in line 218"
+
+# What AI generated - the output you received
+- For each question, AI generates a thorough response that allows me to understand not just the individual line, but how it impacts the whole tool
+- in final testing, it also created new .py and .txt menus to test
+
+# What you did with it - how you verified, modified, or integrated the output
+- Sometimes I add what it tells me into comments directly in the code, so I can be reminded when I read through again. Other times I just read it's response for my internal understanding
+- AI ran the test menus through the real menu.py code to validate accuracy
+
+# What you learned - what you understood better as a result
+- This helps me understand how pieces of code that were written across multiple days of work all come together for the final output
