@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Menu Decoder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">Menu Decoder</p>
+        <h1>Turn pasted menus into a readable restaurant snapshot.</h1>
+        <p class="lede">
+          Paste a menu, then get cuisine hints, price range, average dish price,
+          and dietary signals in one pass.
+        </p>
+      </section>
+
+      <section class="panel">
+        {% if error %}
+          <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+
+        {% if result %}
+          {% set summary = result.restaurant_summary %}
+          <section class="results">
+            <div class="results-header">
+              <h2>Results</h2>
+              <p>Restaurant overview and summary signals.</p>
+            </div>
+
+            <div class="summary-grid">
+              <article>
+                <span>Cuisine</span>
+                <strong>{{ summary.cuisine_type }}</strong>
+              </article>
+              <article>
+                <span>Price range</span>
+                <strong>{{ summary.price_range }}</strong>
+              </article>
+              <article>
+                <span>Average dish price</span>
+                <strong>{{ summary.average_dish_price }}</strong>
+              </article>
+              <article>
+                <span>Vegetarian friendly</span>
+                <strong>{{ summary.vegetarian_friendly }}</strong>
+              </article>
+              <article>
+                <span>Pescatarian friendly</span>
+                <strong>{{ summary.pescatarian_friendly }}</strong>
+              </article>
+            </div>
+
+            {% if summary.flagged_allergens %}
+              <div class="flagged">
+                <h3>Flagged allergens</h3>
+                <ul>
+                  {% for allergen, count in summary.flagged_allergens.items() %}
+                    <li><span>{{ allergen }}</span><strong>{{ count }}</strong></li>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endif %}
+          </section>
+        {% endif %}
+
+        <form method="post" class="menu-form">
+          <label for="menu_text">Menu text</label>
+          <textarea
+            id="menu_text"
+            name="menu_text"
+            rows="14"
+            maxlength="{{ max_length }}"
+            placeholder="Paste the menu text here..."
+          >{{ menu_text }}</textarea>
+          <div class="form-meta">
+            <span>Max {{ max_length }} characters</span>
+            <button type="submit">Analyze menu</button>
+          </div>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>
