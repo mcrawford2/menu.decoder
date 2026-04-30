@@ -74,6 +74,7 @@ body {
 }
 
 .menu-form {
+  margin-top: 36px;
   display: grid;
   gap: 12px;
 }
@@ -117,6 +118,12 @@ textarea:focus {
   color: var(--muted);
 }
 
+.button-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 button {
   border: 0;
   border-radius: 999px;
@@ -146,7 +153,7 @@ button:hover {
 }
 
 .results {
-  margin-top: 28px;
+  margin-top: 0;
   display: grid;
   gap: 20px;
 }
